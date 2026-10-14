@@ -524,11 +524,16 @@ def render_html(model: dict) -> str:
       return button;
     }}
 
+    function normalizeSearch(text) {{
+      // Ignore "/" and spacing so "95/105", "95 105" and "95 / 105" all match anywhere in the label.
+      return text.split("/").join(" ").split(" ").filter(Boolean).join(" ");
+    }}
+
     function renderList() {{
-      const keyword = filter.value.trim();
+      const keyword = normalizeSearch(filter.value);
       list.innerHTML = "";
       model.series.forEach((item, index) => {{
-        if (keyword && !item.label.includes(keyword)) return;
+        if (keyword && !normalizeSearch(item.label).includes(keyword)) return;
         list.appendChild(createButton(item, index));
       }});
       markActive();
