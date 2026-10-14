@@ -1,0 +1,72 @@
+import sys
+import unittest
+from pathlib import Path
+
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_DIR))
+
+from generate_cathay_fcn_dashboard import (  # noqa: E402
+    build_dashboard_model,
+    parse_quote_line,
+    render_html,
+)
+
+
+class CathayFcnDashboardTests(unittest.TestCase):
+    def test_parse_quote_line_normalizes_percent_values(self):
+        row = parse_quote_line(
+            "限PI承作 固定配息率觸及型 2330 台積電 84 91% 105% 10.96 100.00% 2 28 28",
+            "2026-04-27",
+            "2026-05-08",
+            "sample.pdf",
+        )
+
+        self.assertEqual(row["stock_id"], "2330")
+        self.assertEqual(row["stock_name"], "台積電")
+        self.assertEqual(row["lower_bound_pct"], 91.0)
+        self.assertEqual(row["upper_bound_pct"], 105.0)
+        self.assertEqual(row["coupon_rate_pct"], 10.96)
+
+    def test_build_dashboard_model_filters_2330_fcn_and_skips_missing_dates(self):
+        rows = [
+            {"stock_id": "2330", "stock_name": "台積電", "product_type": "固定配息率觸及型", "quote_start_date": "2026-04-27", "quote_end_date": "2026-05-08", "lower_bound_pct": 91.0, "upper_bound_pct": 105.0, "coupon_rate_pct": 10.96},
+            {"stock_id": "2330", "stock_name": "台積電", "product_type": "固定配息率觸及型", "quote_start_date": "2026-05-25", "quote_end_date": "2026-05-29", "lower_bound_pct": 91.0, "upper_bound_pct": 105.0, "coupon_rate_pct": 13.53},
+            {"stock_id": "2330", "stock_name": "台積電", "product_type": "固定配息率觸及型", "quote_start_date": "2026-05-25", "quote_end_date": "2026-05-29", "lower_bound_pct": 92.0, "upper_bound_pct": 106.0, "coupon_rate_pct": 16.63},
+            {"stock_id": "2454", "stock_name": "聯發科", "product_type": "固定配息率觸及型", "quote_start_date": "2026-05-25", "quote_end_date": "2026-05-29", "lower_bound_pct": 91.0, "upper_bound_pct": 105.0, "coupon_rate_pct": 20.00},
+        ]
+
+        model = build_dashboard_model(rows)
+
+        self.assertEqual(model["stock_id"], "2330")
+        self.assertEqual(model["date_labels"], ["2026-04-27", "2026-05-25"])
+        self.assertEqual(len(model["series"]), 2)
+        first = model["series"][0]
+        self.assertEqual(first["label"], "91 / 105")
+        self.assertEqual(first["points"], [["2026-04-27", 10.96], ["2026-05-25", 13.53]])
+
+    def test_render_html_embeds_data_and_clickable_controls(self):
+        model = {
+            "stock_id": "2330",
+            "stock_name": "台積電",
+            "product_type": "固定配息率觸及型",
+            "date_labels": ["2026-04-27", "2026-05-25"],
+            "series": [
+                {
+                    "label": "91 / 105",
+                    "lower_bound_pct": 91.0,
+                    "upper_bound_pct": 105.0,
+                    "points": [["2026-04-27", 10.96], ["2026-05-25", 13.53]],
+                }
+            ],
+        }
+
+        html = render_html(model)
+
+        self.assertIn('<script id="dashboard-data" type="application/json">', html)
+        self.assertIn("renderSeries", html)
+        self.assertIn("data-series-index", html)
+        self.assertIn("91 / 105", html)
+
+
+if __name__ == "__main__":
+    unittest.main()
