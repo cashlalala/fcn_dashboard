@@ -2,7 +2,7 @@
 
 這個目錄是一個獨立整理包，用來讀取國泰證券 FCN/ELN PDF 報價，並針對 `2330 台積電` 產生：
 
-- `output/2330_fcn_dashboard.html`：互動式 HTML，可點擊不同「履約價 / 上限價」查看年化配息率趨勢。
+- `output/2330_fcn_dashboard.html`（ELN 為 `2330_eln_dashboard.html`）：互動式 HTML，可點擊不同「履約價 / 上限價」查看年化配息率趨勢。
 - `output/cathay_fcn_2330_rates.xlsx`：Excel 整理表，保留 pivot 與明細。
 
 ## 目錄內容
@@ -29,8 +29,23 @@ C:\Users\cash\OneDrive\國泰fcn報價
 如果來源或輸出位置不同，可以指定參數：
 
 ```powershell
-python cathay_fcn_2330_dashboard\generate_cathay_fcn_dashboard.py --input-dir "C:\Users\cash\OneDrive\國泰fcn報價" --output-dir "cathay_fcn_2330_dashboard\output" --stock-id 2330
+python cathay_fcn_2330_dashboard\generate_cathay_fcn_dashboard.py --input-dir "C:\Users\cash\OneDrive\國泰fcn報價" --output-dir "cathay_fcn_2330_dashboard\output" --stock-id 2330 --product fcn
 ```
+
+## Web 介面
+
+```powershell
+python cathay_fcn_2330_dashboard\web_server.py
+# 選用：--port 8765 --input-dir ... --output-dir ... --stock-id 2330 --product fcn --no-browser
+```
+
+啟動後會自動開啟 `http://127.0.0.1:8765/`（只監聽本機）：
+
+- 左側參數會帶入預設值（被改過的欄位會以橘框標示），「瀏覽」可在對話框中切換目錄，「重設預設值」可還原。
+- 「商品類型」可選 FCN（固定配息率觸及型）或 ELN（上限型），輸出為 `{股票}_fcn_dashboard.html` / `{股票}_eln_dashboard.html`；所選股票沒有該商品報價時會拒絕產生。
+- PDF 檔案列表會依股票代號與商品類型即時高亮：綠色＝內容含該股的所選商品（會用於圖表）、橘色＝只有其他商品、灰色＝內容尚未解析完、暫以檔名比對。
+- 高亮以 PDF 內容為準。首次解析會平行處理（約 10 秒），結果快取在 `.cache/pdf_rows.json`，之後只重新解析新增或變更的檔案。
+- 右側分頁列出輸出目錄中已產生的儀表板，可直接切換；按「產生儀表板」後會自動切到新產生的那一頁，並提供 Excel 下載。
 
 ## HTML 操作
 

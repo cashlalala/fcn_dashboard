@@ -5,11 +5,17 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 
+import tempfile  # noqa: E402
+
 from generate_cathay_fcn_dashboard import (  # noqa: E402
+    NoQuotesError,
     build_dashboard_model,
     parse_quote_line,
     render_html,
+    write_outputs,
 )
+
+ELN_ROW = {"stock_id": "2345", "stock_name": "智邦", "product_type": "上限型", "quote_start_date": "2026-05-11", "quote_end_date": "2026-05-15", "lower_bound_pct": 100.0, "upper_bound_pct": 104.0, "coupon_rate_pct": 12.56}
 
 
 class CathayFcnDashboardTests(unittest.TestCase):
@@ -66,6 +72,24 @@ class CathayFcnDashboardTests(unittest.TestCase):
         self.assertIn("renderSeries", html)
         self.assertIn("data-series-index", html)
         self.assertIn("91 / 105", html)
+
+    def test_write_outputs_refuses_stock_without_quotes_for_product(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(NoQuotesError):
+                write_outputs(Path(tmp), Path(tmp), stock_id="2345", rows=[ELN_ROW], product="fcn")
+            self.assertEqual(list(Path(tmp).iterdir()), [])
+
+    def test_write_outputs_eln_uses_stock_specific_names(self):
+        from openpyxl import load_workbook
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = write_outputs(Path(tmp), Path(tmp), stock_id="2345", rows=[ELN_ROW], product="eln")
+            html = result["html"].read_text(encoding="utf-8")
+            sheets = load_workbook(result["excel"]).sheetnames
+
+        self.assertEqual(result["html"].name, "2345_eln_dashboard.html")
+        self.assertIn("2345 智邦 ELN 利率趨勢", html)
+        self.assertEqual(sheets, ["Summary", "2345_FCN_利率變化", "2345_ELN_利率變化", "2345_明細"])
 
 
 if __name__ == "__main__":

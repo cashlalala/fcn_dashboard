@@ -14,6 +14,24 @@ import pdfplumber
 DEFAULT_INPUT_DIR = Path(r"C:\Users\cash\OneDrive\國泰fcn報價")
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 
+# Short code (used in output file names and --product) -> product type and display label.
+PRODUCTS = {
+    "fcn": {"product_type": "固定配息率觸及型", "label": "FCN"},
+    "eln": {"product_type": "上限型", "label": "ELN"},
+}
+
+
+class NoQuotesError(ValueError):
+    """The chosen stock has no quotes for the chosen product."""
+
+
+def product_label(product_type: str) -> str:
+    for product in PRODUCTS.values():
+        if product["product_type"] == product_type:
+            return product["label"]
+    return product_type
+
+
 DATE_RE = re.compile(r"(\d{4})[/.](\d{1,2})[/.](\d{1,2})")
 PERIOD_RE = re.compile(
     r"有效期間[：:]\s*(\d{4}[/.]\d{1,2}[/.]\d{1,2})\s*~\s*(\d{4}[/.]\d{1,2}[/.]\d{1,2})"
@@ -220,9 +238,9 @@ def write_excel(rows: list[dict], output_path: Path, stock_id: str = "2330") -> 
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         summary.to_excel(writer, sheet_name="Summary", index=False)
-        fcn_pivot.to_excel(writer, sheet_name="2330_FCN_利率變化", index=False)
-        eln_pivot.to_excel(writer, sheet_name="2330_ELN_利率變化", index=False)
-        target_rows.to_excel(writer, sheet_name="2330_明細", index=False)
+        fcn_pivot.to_excel(writer, sheet_name=f"{stock_id}_FCN_利率變化", index=False)
+        eln_pivot.to_excel(writer, sheet_name=f"{stock_id}_ELN_利率變化", index=False)
+        target_rows.to_excel(writer, sheet_name=f"{stock_id}_明細", index=False)
 
     format_excel(output_path)
 
@@ -270,7 +288,8 @@ def format_excel(output_path: Path) -> None:
 
 def render_html(model: dict) -> str:
     safe_json = html.escape(json.dumps(model, ensure_ascii=False), quote=False)
-    title = f"{model['stock_id']} {model['stock_name']} FCN 利率趨勢"
+    label = product_label(model["product_type"])
+    title = f"{model['stock_id']} {model['stock_name']} {label} 利率趨勢"
     return f"""<!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -587,7 +606,7 @@ def render_html(model: dict) -> str:
     if (model.series.length) {{
       renderSeries(0);
     }} else {{
-      document.querySelector(".chart-wrap").innerHTML = '<div class="empty">沒有找到 2330 FCN 報價資料。</div>';
+      document.querySelector(".chart-wrap").innerHTML = `<div class="empty">沒有找到 ${{model.stock_id}} {html.escape(label)} 報價資料。</div>`;
     }}
   </script>
 </body>
@@ -595,11 +614,21 @@ def render_html(model: dict) -> str:
 """
 
 
-def write_outputs(input_dir: Path, output_dir: Path, stock_id: str = "2330") -> dict:
+def write_outputs(
+    input_dir: Path,
+    output_dir: Path,
+    stock_id: str = "2330",
+    rows: list[dict] | None = None,
+    product: str = "fcn",
+) -> dict:
+    if rows is None:
+        rows = extract_rows(input_dir)
+    product_type = PRODUCTS[product]["product_type"]
+    model = build_dashboard_model(rows, stock_id=stock_id, product_type=product_type)
+    if not model["series"]:
+        raise NoQuotesError(f"股票 {stock_id} 沒有 {PRODUCTS[product]['label']}（{product_type}）報價。")
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows = extract_rows(input_dir)
-    model = build_dashboard_model(rows, stock_id=stock_id)
-    html_path = output_dir / f"{stock_id}_fcn_dashboard.html"
+    html_path = output_dir / f"{stock_id}_{product}_dashboard.html"
     excel_path = output_dir / f"cathay_fcn_{stock_id}_rates.xlsx"
     html_path.write_text(render_html(model), encoding="utf-8")
     write_excel(rows, excel_path, stock_id=stock_id)
@@ -613,13 +642,17 @@ def write_outputs(input_dir: Path, output_dir: Path, stock_id: str = "2330") -> 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="產生國泰 2330 FCN 報價互動 HTML 與 Excel。")
+    parser = argparse.ArgumentParser(description="產生國泰 FCN/ELN 報價互動 HTML 與 Excel。")
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--stock-id", default="2330")
+    parser.add_argument("--product", choices=sorted(PRODUCTS), default="fcn", help="HTML 圖表的商品類型")
     args = parser.parse_args()
 
-    result = write_outputs(args.input_dir, args.output_dir, stock_id=args.stock_id)
+    try:
+        result = write_outputs(args.input_dir, args.output_dir, stock_id=args.stock_id, product=args.product)
+    except NoQuotesError as exc:
+        raise SystemExit(str(exc)) from exc
     print(
         f"Wrote {result['html']} and {result['excel']} "
         f"from {result['rows']} rows; {result['series']} series across {result['dates']} dates."

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FCN/ELN 報價工作台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>國泰 FCN/ELN 報價工作台</h1>
+    <span id="server-status" class="muted"></span>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <form id="params" class="params" autocomplete="off">
+        <label for="input-dir">PDF 來源目錄</label>
+        <div class="field-row">
+          <input id="input-dir" name="input_dir" type="text" spellcheck="false">
+          <button type="button" class="ghost" data-browse="input-dir">瀏覽</button>
+        </div>
+
+        <label for="output-dir">輸出目錄</label>
+        <div class="field-row">
+          <input id="output-dir" name="output_dir" type="text" spellcheck="false">
+          <button type="button" class="ghost" data-browse="output-dir">瀏覽</button>
+        </div>
+
+        <label for="stock-id">股票代號</label>
+        <input id="stock-id" name="stock_id" type="text" list="stock-options" inputmode="numeric" spellcheck="false">
+        <datalist id="stock-options"></datalist>
+
+        <label for="product">商品類型（圖表）</label>
+        <select id="product" name="product"></select>
+
+        <div class="actions">
+          <button id="generate" type="submit" class="primary">產生儀表板</button>
+          <button id="reset" type="button" class="ghost">重設預設值</button>
+        </div>
+        <div id="form-status" class="status" role="status"></div>
+      </form>
+
+      <section class="files">
+        <div class="files-head">
+          <h2>PDF 檔案</h2>
+          <span id="match-count" class="muted"></span>
+        </div>
+        <div class="files-tools">
+          <label class="check"><input id="only-matched" type="checkbox"> 只顯示符合</label>
+          <span class="legend"><i class="sw fcn"></i>含所選商品 <i class="sw other"></i>僅其他商品 <i class="sw guess"></i>檔名符合</span>
+        </div>
+        <div id="scan-progress" class="progress" hidden><div class="bar"></div><span class="label"></span></div>
+        <ul id="file-list" class="file-list"></ul>
+      </section>
+    </aside>
+
+    <section class="viewer">
+      <div class="viewer-bar">
+        <nav id="tabs" class="tabs" aria-label="已產生的儀表板"></nav>
+        <div class="viewer-links">
+          <a id="download-excel" class="link" hidden>下載 Excel</a>
+          <a id="open-new" class="link" target="_blank" rel="noopener" hidden>新分頁開啟</a>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="dashboard-frame" title="FCN 儀表板" hidden></iframe>
+        <div id="viewer-empty" class="viewer-empty">輸出目錄中還沒有儀表板，設定參數後按「產生儀表板」。</div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dir-dialog" class="dir-dialog">
+    <form method="dialog">
+      <h2>選擇目錄</h2>
+      <div id="dir-current" class="dir-current"></div>
+      <ul id="dir-list" class="dir-list"></ul>
+      <div class="dialog-actions">
+        <span id="dir-info" class="muted"></span>
+        <button value="cancel" class="ghost">取消</button>
+        <button id="dir-choose" value="choose" class="primary">選擇此目錄</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
