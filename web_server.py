@@ -106,6 +106,30 @@ def summarize_entry(entry: dict) -> dict:
     }
 
 
+def build_compare_model(rows: list[dict], product_type: str) -> dict:
+    """Max coupon rate per (stock, date, lower, upper) across every stock, for the compare page."""
+    stocks: dict[str, str] = {}
+    best: dict[tuple, float] = {}
+    for row in rows:
+        if row["product_type"] != product_type:
+            continue
+        date = row["quote_start_date"] or row["quote_end_date"]
+        lower, upper, rate = row["lower_bound_pct"], row["upper_bound_pct"], row["coupon_rate_pct"]
+        if date is None or lower is None or upper is None or rate is None:
+            continue
+        stocks.setdefault(row["stock_id"], row["stock_name"])
+        key = (row["stock_id"], date, lower, upper)
+        if key not in best or rate > best[key]:
+            best[key] = rate
+    return {
+        "product_type": product_type,
+        "stocks": dict(sorted(stocks.items())),
+        "dates": sorted({key[1] for key in best}),
+        # [stock_id, date, lower_bound_pct, upper_bound_pct, coupon_rate_pct]
+        "quotes": [[*key, rate] for key, rate in sorted(best.items())],
+    }
+
+
 class ScanJob:
     """Parses every PDF in one directory in the background, using the cache when possible."""
 
@@ -194,6 +218,12 @@ class App:
                 job = ScanJob(directory, self.cache)
                 self.jobs[key] = job
             return job
+
+    def compare(self, input_dir: Path, product: str) -> dict:
+        if product not in gen.PRODUCTS:
+            raise ApiError(f"未知的商品類型：{product}")
+        model = build_compare_model(self.scan_job(input_dir).rows(), gen.PRODUCTS[product]["product_type"])
+        return {"dir": str(input_dir), "product": product, **model}
 
     def generate(self, input_dir: Path, output_dir: Path, stock_id: str, product: str) -> dict:
         if product not in gen.PRODUCTS:
@@ -351,6 +381,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._json(browse(query.get("dir")))
                 elif method == "GET" and url.path == "/api/scan":
                     self._json(app.scan_job(resolve_dir(query.get("dir"))).status())
+                elif method == "GET" and url.path == "/api/compare":
+                    self._json(app.compare(resolve_dir(query.get("dir")), query.get("product") or "fcn"))
                 elif method == "GET" and url.path == "/api/outputs":
                     self._json(list_outputs(query.get("dir")))
                 elif method == "GET" and url.path == "/output":

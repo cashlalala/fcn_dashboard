@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>跨股利率比較</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>國泰 FCN/ELN 報價工作台</h1>
+    <nav class="page-nav" aria-label="功能頁">
+      <a id="nav-home" href="/">儀表板產生</a>
+      <a href="compare.html" class="active" aria-current="page">跨股利率比較</a>
+    </nav>
+    <span id="server-status" class="muted"></span>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <form id="filters" class="params" autocomplete="off">
+        <label for="input-dir">PDF 來源目錄</label>
+        <div class="field-row">
+          <input id="input-dir" type="text" spellcheck="false">
+          <button id="load" type="submit" class="ghost">載入</button>
+        </div>
+
+        <label>商品類型</label>
+        <div id="product" class="segmented" role="radiogroup" aria-label="商品類型"></div>
+
+        <div class="bounds">
+          <div>
+            <label for="lower">下限價（履約價）</label>
+            <select id="lower"></select>
+          </div>
+          <div>
+            <label for="upper">上限價</label>
+            <select id="upper"></select>
+          </div>
+        </div>
+
+        <label for="date">比較日期</label>
+        <div class="field-row">
+          <button id="date-prev" type="button" class="ghost" title="前一個報價日" aria-label="前一個報價日">◀</button>
+          <select id="date"></select>
+          <button id="date-next" type="button" class="ghost" title="後一個報價日" aria-label="後一個報價日">▶</button>
+        </div>
+        <div id="form-status" class="status" role="status"></div>
+      </form>
+
+      <section class="files">
+        <div class="files-head">
+          <h2>比較股票</h2>
+          <span class="stock-actions">
+            <button id="stocks-all" type="button" class="link-button">全選</button>
+            <button id="stocks-none" type="button" class="link-button">清除</button>
+          </span>
+        </div>
+        <p class="muted hint">只列出此商品有報價的股票；灰色表示目前上下限沒有報價。</p>
+        <div id="scan-progress" class="progress" hidden><div class="bar"></div><span class="label"></span></div>
+        <ul id="stock-list" class="stock-list"></ul>
+      </section>
+    </aside>
+
+    <section class="compare">
+      <div id="compare-empty" class="viewer-empty">讀取報價中…</div>
+      <div id="compare-body" hidden>
+        <div class="headline">
+          <div>
+            <div id="headline-title" class="headline-title"></div>
+            <div id="headline-sub" class="muted"></div>
+          </div>
+          <div id="headline-best" class="headline-best"></div>
+        </div>
+
+        <section class="card">
+          <h2 id="rank-title">當日利率排名</h2>
+          <ol id="rank-list" class="rank-list"></ol>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>利率走勢（同一下限 / 上限）</h2>
+            <span class="muted">點圖表可切換比較日期</span>
+          </div>
+          <div id="trend-legend" class="chart-legend"></div>
+          <div id="trend-wrap" class="trend-wrap">
+            <svg id="trend-chart" class="trend-chart" role="img" aria-label="各股票利率走勢"></svg>
+            <div id="trend-tip" class="chart-tip" hidden></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>報價明細</h2>
+            <span class="muted">每列最高利率以粗體標示，點列可切換日期</span>
+          </div>
+          <div class="table-wrap"><table id="detail-table" class="detail-table"></table></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="compare.js"></script>
+</body>
+</html>

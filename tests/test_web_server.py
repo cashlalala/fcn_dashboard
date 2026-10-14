@@ -6,7 +6,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 
-from web_server import ApiError, browse, list_outputs, output_file, summarize_entry  # noqa: E402
+from web_server import ApiError, browse, build_compare_model, list_outputs, output_file, summarize_entry  # noqa: E402
 
 
 class WebServerTests(unittest.TestCase):
@@ -23,6 +23,32 @@ class WebServerTests(unittest.TestCase):
         self.assertEqual(summary["stocks"]["2330"]["products"], ["固定配息率觸及型", "上限型"])
         self.assertEqual(summary["stocks"]["2454"]["name"], "聯發科")
         self.assertEqual(summary["quote_start_date"], "2026-04-27")
+
+    def test_build_compare_model_keeps_max_rate_per_stock_date_and_bounds(self):
+        def row(stock_id, name, date, lower, upper, rate, product_type="固定配息率觸及型"):
+            return {
+                "stock_id": stock_id, "stock_name": name, "product_type": product_type,
+                "quote_start_date": date, "quote_end_date": date,
+                "lower_bound_pct": lower, "upper_bound_pct": upper, "coupon_rate_pct": rate,
+            }
+
+        rows = [
+            row("2454", "聯發科", "2026-05-04", 92.0, 105.0, 14.1),
+            row("2330", "台積電", "2026-05-04", 92.0, 105.0, 12.3),
+            row("2330", "台積電", "2026-05-04", 92.0, 105.0, 12.8),
+            row("2330", "台積電", "2026-04-27", 92.0, 105.0, 11.5),
+            row("2330", "台積電", "2026-04-27", 100.0, 104.0, 9.9, product_type="上限型"),
+        ]
+
+        model = build_compare_model(rows, "固定配息率觸及型")
+
+        self.assertEqual(model["stocks"], {"2330": "台積電", "2454": "聯發科"})
+        self.assertEqual(model["dates"], ["2026-04-27", "2026-05-04"])
+        self.assertEqual(model["quotes"], [
+            ["2330", "2026-04-27", 92.0, 105.0, 11.5],
+            ["2330", "2026-05-04", 92.0, 105.0, 12.8],
+            ["2454", "2026-05-04", 92.0, 105.0, 14.1],
+        ])
 
     def test_browse_and_outputs_list_expected_files(self):
         with tempfile.TemporaryDirectory() as tmp:

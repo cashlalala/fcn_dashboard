@@ -1,6 +1,5 @@
 "use strict";
 
-const $ = (id) => document.getElementById(id);
 const els = {
   form: $("params"),
   inputDir: $("input-dir"),
@@ -21,6 +20,7 @@ const els = {
   viewerEmpty: $("viewer-empty"),
   downloadExcel: $("download-excel"),
   openNew: $("open-new"),
+  navCompare: $("nav-compare"),
   dirDialog: $("dir-dialog"),
   dirCurrent: $("dir-current"),
   dirList: $("dir-list"),
@@ -38,21 +38,6 @@ const state = {
   dialogTarget: null,
   dialogDir: "",
 };
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[ch]);
-}
-
-async function api(path, options) {
-  const response = await fetch(path, options);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-  return data;
-}
-
-const query = (params) => new URLSearchParams(params).toString();
 
 function setStatus(text, kind = "") {
   els.formStatus.textContent = text;
@@ -85,8 +70,14 @@ function productLabel(productType) {
 
 /* ---------- PDF file list ---------- */
 
+// The compare page opens on the same PDF directory and product.
+function updateCompareLink() {
+  els.navCompare.href = `compare.html?${query({ dir: els.inputDir.value.trim(), product: els.product.value })}`;
+}
+
 async function loadFiles() {
   const dir = els.inputDir.value.trim();
+  updateCompareLink();
   const token = ++state.scanToken;
   state.pdfs = [];
   state.scan = null;
@@ -336,7 +327,7 @@ async function init() {
   els.form.addEventListener("submit", generate);
   els.form.addEventListener("input", markChanged);
   els.stockId.addEventListener("input", renderFiles);
-  els.product.addEventListener("change", () => { markChanged(); renderFiles(); });
+  els.product.addEventListener("change", () => { markChanged(); renderFiles(); updateCompareLink(); });
   els.onlyMatched.addEventListener("change", renderFiles);
   els.reset.addEventListener("click", () => {
     setInputDir(state.defaults.input_dir);
